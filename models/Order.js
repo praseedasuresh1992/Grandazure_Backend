@@ -2,7 +2,6 @@ import mongoose from "mongoose";
 
 const orderItemSchema = new mongoose.Schema({
   menuItem: { type: mongoose.Schema.Types.ObjectId, ref: "MenuItem", required: true },
-  name: { type: String, required: true },
   unitPrice: { type: Number, required: true, min: 0 },
   quantity: { type: Number, required: true, min: 1, max: 50 },
   lineTotal: { type: Number, required: true, min: 0 },
@@ -19,8 +18,6 @@ const orderSchema = new mongoose.Schema({
       message: "A valid table number is required for table orders",
     },
   },
-  customerName: { type: String, trim: true, maxlength: 100, default: "" },
-  customerPhone: { type: String, trim: true, maxlength: 25, default: "" },
   notes: { type: String, trim: true, maxlength: 500, default: "" },
   items: { type: [orderItemSchema], required: true, validate: [(items) => items.length > 0, "Order must contain at least one item"] },
   subtotal: { type: Number, required: true, min: 0 },

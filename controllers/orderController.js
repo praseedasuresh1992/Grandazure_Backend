@@ -5,7 +5,7 @@ import MenuItem from "../models/MenuItem.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 
 export const createOrder = asyncHandler(async (req, res) => {
-  const { orderType, tableNumber, items, customerName = "", customerPhone = "", notes = "" } = req.body;
+  const { orderType, tableNumber, items, customerPhone = "", notes = "" } = req.body;
 
   if (!["table", "takeaway"].includes(orderType)) {
     res.status(400);
@@ -54,7 +54,6 @@ export const createOrder = asyncHandler(async (req, res) => {
     const unitPrice = item.price;
     return {
       menuItem: item._id,
-      name: item.name,
       unitPrice,
       quantity,
       lineTotal: Number((unitPrice * quantity).toFixed(2)),
@@ -66,7 +65,6 @@ export const createOrder = asyncHandler(async (req, res) => {
     orderNumber: `FO-${Date.now().toString(36).toUpperCase()}-${crypto.randomBytes(3).toString("hex").toUpperCase()}`,
     orderType,
     ...(orderType === "table" ? { tableNumber: Number(tableNumber) } : {}),
-    customerName: String(customerName).trim().slice(0, 100),
     customerPhone: String(customerPhone).trim().slice(0, 25),
     notes: String(notes).trim().slice(0, 500),
     items: orderItems,
