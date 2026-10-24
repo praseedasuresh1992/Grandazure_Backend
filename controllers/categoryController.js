@@ -1,57 +1,177 @@
 import Category from "../models/Category.js";
-import { asyncHandler } from "../utils/asyncHandler.js";
 
-const slugify = (value) => value.toLowerCase().trim()
-  .replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+// GET: Fetch all categories
+export const getCategories = async (req, res) => {
+  try {
+    const categories = await Category.find().sort({ createdAt: -1 });
 
-export const getCategories = asyncHandler(async (req, res) => {
-  const filter = req.query.all === "true" ? {} : { isActive: true };
-  const categories = await Category.find(filter).sort({ name: 1 });
-  res.json({ success: true, count: categories.length, data: categories });
-});
-
-export const createCategory = asyncHandler(async (req, res) => {
-  const { name, description = "", image = "", slug } = req.body;
-  if (!name?.trim()) {
-    res.status(400);
-    throw new Error("Category name is required");
+    return res.status(200).json({
+      success: true,
+      message: "Categories fetched successfully",
+      count: categories.length,
+      categories,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch categories",
+      error: error.message,
+    });
   }
+};
 
-  const category = await Category.create({
-    name: name.trim(),
-    slug: slugify(slug || name),
-    description,
-    image,
-  });
-  res.status(201).json({ success: true, data: category });
-});
+// POST: Create a new category
+export const createCategory = async (req, res) => {
+  try {
+    const { name, slug, description, image, isActive } = req.body;
 
-export const updateCategory = asyncHandler(async (req, res) => {
-  const updates = {};
-  for (const key of ["name", "description", "image", "isActive"]) {
-    if (req.body[key] !== undefined) updates[key] = req.body[key];
-  }
-  if (req.body.slug !== undefined || req.body.name !== undefined) {
-    updates.slug = slugify(req.body.slug || req.body.name);
-  }
+    if (!name || !slug) {
+      return res.status(400).json({
+        success: false,
+        message: "Category name and slug are required",
+      });
+    }
 
-  const category = await Category.findByIdAndUpdate(req.params.id, updates, {
-    new: true, runValidators: true,
-  });
-  if (!category) {
-    res.status(404);
-    throw new Error("Category not found");
-  }
-  res.json({ success: true, data: category });
-});
+    // Check whether the name or slug already exists
+    const existingCategory = await Category.findOne({
+      $or: [
+        { name: name.trim() },
+        { slug: slug.trim().toLowerCase() },
+      ],
+    });
 
-export const deleteCategory = asyncHandler(async (req, res) => {
-  const category = await Category.findByIdAndUpdate(
-    req.params.id, { isActive: false }, { new: true }
-  );
-  if (!category) {
-    res.status(404);
-    throw new Error("Category not found");
+    if (existingCategory) {
+      return res.status(409).json({
+        success: false,
+        message: "Category name or slug already exists",
+      });
+    }
+
+    const category = await Category.create({
+      name,
+      slug,
+      description,
+      image,
+      isActive,
+    });
+
+    return res.status(201).json({
+      success: true,
+      message: "Category created successfully",
+      category,
+    });
+  } catch (error) {
+    if (error.code === 11000) {
+      return res.status(409).json({
+        success: false,
+        message: "Category name or slug already exists",
+      });
+    }
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to create category",
+      error: error.message,
+    });
   }
-  res.json({ success: true, message: "Category deactivated", data: category });
-});
+};
+
+// PATCH: Update an existing category
+export const updateCategory = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name, slug, description, image, isActive } = req.body;
+
+    if (!id || !id.match(/^[0-9a-fA-F]{24}$/)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid category ID",
+      });
+    }
+
+    const updates = {};
+
+    if (name !== undefined) updates.name = name;
+    if (slug !== undefined) updates.slug = slug;
+    if (description !== undefined) updates.description = description;
+    if (image !== undefined) updates.image = image;
+    if (isActive !== undefined) updates.isActive = isActive;
+
+    if (Object.keys(updates).length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: "No fields provided for update",
+      });
+    }
+
+    const category = await Category.findByIdAndUpdate(
+      id,
+      updates,
+      {
+        new: true,
+        runValidators: true,
+      }
+    );
+
+    if (!category) {
+      return res.status(404).json({
+        success: false,
+        message: "Category not found",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "Category updated successfully",
+      category,
+    });
+  } catch (error) {
+    if (error.code === 11000) {
+      return res.status(409).json({
+        success: false,
+        message: "Category name or slug already exists",
+      });
+    }
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to update category",
+      error: error.message,
+    });
+  }
+};
+
+// DELETE: Delete a category
+export const deleteCategory = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    if (!id || !id.match(/^[0-9a-fA-F]{24}$/)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid category ID",
+      });
+    }
+
+    const category = await Category.findByIdAndDelete(id);
+
+    if (!category) {
+      return res.status(404).json({
+        success: false,
+        message: "Category not found",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "Category deleted successfully",
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: "Failed to delete category",
+      error: error.message,
+    });
+  }
+};
+
